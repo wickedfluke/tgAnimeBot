@@ -13,24 +13,44 @@ bot_token = "1338679959:AAF-I2mwxJ2QBXm-RViC8mvoleaBNb8WiBo"
 
 # Creiamo il client Telethon
 bot = TelegramClient("bot_session", api_id, api_hash).start(bot_token=bot_token)
+last_upload_percent = -1
 
 # Funzione per scaricare il video in modo asincrono
-async def download_video(mp4_url, file_name):
+async def download_video(mp4_url, file_name, event):
     async with aiohttp.ClientSession() as session:
         async with session.get(mp4_url) as response:
             if response.status == 200:
+                total_size = int(response.headers.get("Content-Length", 0))
+                downloaded = 0
+                last_percent = -1  # Variabile per tenere traccia dell'ultima percentuale
                 with open(file_name, "wb") as f:
                     async for chunk in response.content.iter_chunked(5 * 1024 * 1024):  # Usa chunk più grandi (1MB)
                         if chunk:
+                            downloaded += len(chunk)
                             f.write(chunk)
+                            percent = int((downloaded / total_size) * 100)  # Calcola la percentuale
+
+                            # Se la percentuale è cambiata, invia un messaggio aggiornato
+                            if percent != last_percent:
+                                last_percent = percent
+                                await event.edit(f"🎬 *Download in corso...* {percent}% completato.")
                 return True
             else:
                 return False
     return False
 
 # Funzione per inviare il video dopo il download
-async def invia_video(client, chat_id, video_url):
-    # Trova il video MP4 dalla pagina dello streaming (video_url è già completo)
+async def upload_progress(current, total, event):
+    global last_upload_percent
+    percent = int((current / total) * 100)
+    
+    # Aggiorna il messaggio solo se la percentuale cambia
+    if percent != last_upload_percent:
+        last_upload_percent = percent
+        await event.edit(f"🎬 *Upload in corso...* {percent}% completato.")
+
+# Funzione per inviare il video dopo il download
+async def invia_video(client, chat_id, video_url, event):
     mp4_url = trova_video_mp4(video_url)
     if mp4_url:
         # Scarica il video
@@ -38,12 +58,19 @@ async def invia_video(client, chat_id, video_url):
         
         # Download asincrono
         print("Inizio download...")
-        download_success = await download_video(mp4_url, file_name)
+        download_success = await download_video(mp4_url, file_name, event)
         if download_success:
             # Verifica che il video sia stato scaricato correttamente
             if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
                 print("Invio del video...")
-                await client.send_file(chat_id, file_name)
+                
+                # Invia il video con il monitoraggio del progresso
+                await client.send_file(
+                    chat_id, 
+                    file_name, 
+                    progress_callback=lambda current, total: upload_progress(current, total, event)
+                )
+                
                 print("✅ Video inviato!")
                 # Rimuovi il file temporaneo
                 os.remove(file_name)
@@ -251,7 +278,7 @@ async def invio_video_handler(event):
         # Scarica il video
         video_url = data
         await event.respond("🎬 Invio video in corso...")
-        await invia_video(bot, event.chat_id, video_url)
+        await invia_video(bot, event.chat_id, video_url, event)
     else:
         await event.answer("❌ Nessuno streaming disponibile per questo episodio.", alert=True)
 
