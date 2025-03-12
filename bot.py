@@ -73,6 +73,14 @@ async def callback_handler(event):
         await event.answer("❌ Non hai avviato una ricerca anime. Usa il comando /cerca per iniziare.", alert=True)
         return
 
+    if chat_id in cerca_anime_cache:
+        risultati = cerca_anime_cache[chat_id]["risultati"]
+
+    for titolo, link, short_hash in risultati:
+            if data == short_hash:
+                titolo_selezionato = titolo
+                cerca_anime_cache[chat_id]["titolo_selezionato"] = titolo
+    
     # Handling the "Torna alla schermata precedente"
     if data == "back":
         previous_screen = cerca_anime_cache.get(chat_id, {}).get("previous_screen")
@@ -175,7 +183,8 @@ async def callback_handler(event):
         if video_url:
             ep_numero = data.split("=")[-1]
             nome_anime = cerca_anime_cache.get(chat_id, {}).get("nome", "Anime")
-            file_name = f"{ep_numero} - {nome_anime}.m3u"
+            titolo_selezionato = cerca_anime_cache.get(chat_id, {}).get("titolo_selezionato", "Sconosciuto")
+            file_name = f"{ep_numero} - {titolo_selezionato}.m3u"
 
             with open(file_name, "w") as f:
                 f.write(f"#EXTM3U\n#EXTINF:-1,{ep_numero} - {nome_anime}\n{video_url}")
