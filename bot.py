@@ -184,10 +184,11 @@ async def callback_handler(event):
             ep_numero = data.split("=")[-1]
             nome_anime = cerca_anime_cache.get(chat_id, {}).get("nome", "Anime")
             titolo_selezionato = cerca_anime_cache.get(chat_id, {}).get("titolo_selezionato", "Sconosciuto")
+            titolo_selezionato = titolo_selezionato.replace(":", "-").replace("?", "").replace("!", "").replace(" ", "_")
             file_name = f"{ep_numero} - {titolo_selezionato}.m3u"
 
             with open(file_name, "w") as f:
-                f.write(f"#EXTM3U\n#EXTINF:-1,{ep_numero} - {nome_anime}\n{video_url}")
+                f.write(f"#EXTM3U\n#EXTINF:-1,{ep_numero} - {titolo_selezionato}\n{video_url}")
 
             await bot.send_file(chat_id, file_name, caption="🎬 Ecco il file M3U per lo streaming.")
             os.remove(file_name)
