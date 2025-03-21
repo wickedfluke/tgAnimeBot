@@ -70,9 +70,9 @@ def trova_episodi(url_anime):
             
             streaming_link = trova_link_streaming(link_ep)
             if streaming_link:
-                episodi.append(Button.inline(f"{ep_numero}", data=streaming_link))
+                episodi.append((ep_numero, streaming_link))
             else:
-                episodi.append(Button.inline(f"{ep_numero} (Nessun streaming)", data="no_stream"))
+                episodi.append((ep_numero, "no_stream"))
 
         return episodi if episodi else []
     else:
