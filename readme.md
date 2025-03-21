@@ -1,3 +1,2 @@
-## hub lista con collegamento episodio a epiCounter
-## collegamento con epicounter
+## hub lista con episodio rapido da epiCounter
 ## improvment design pulsanti bot
