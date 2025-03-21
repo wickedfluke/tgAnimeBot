@@ -146,12 +146,16 @@ async def callback_handler(event):
 
         if url_anime:
             episodi = trova_episodi(url_anime)
-
             if not episodi:
                 await event.answer("❌ Nessun episodio trovato.", alert=True)
                 return
 
-            episodi_row = [episodi[i:i+2] for i in range(0, len(episodi), 2)]
+            cerca_anime_cache[chat_id]["episodi"] = episodi
+
+            episodi_row = []
+            for ep_numero, link in episodi:
+                episodi_row.append([Button.inline(f"{ep_numero}", data=link)])
+
             nome_anime = cerca_anime_cache.get(chat_id, {}).get("nome", "Anime")
 
             consiglia_button = [Button.inline("🤖 Consigliami", data=f"consiglio_{nome_anime}")]
@@ -179,9 +183,12 @@ async def callback_handler(event):
 
     # Handling the creation of M3U file
     elif data.startswith("http"):
-        video_url = trova_video_mp4(data)
+        episodi = cerca_anime_cache.get(chat_id, {}).get("episodi", [])
+        episode_info = next((ep for ep in episodi if ep[1] == data), None)
+        if episode_info:
+            ep_numero, ep_url = episode_info
+        video_url = trova_video_mp4(ep_url)
         if video_url:
-            ep_numero = data.split("=")[-1]
             nome_anime = cerca_anime_cache.get(chat_id, {}).get("nome", "Anime")
             titolo_selezionato = cerca_anime_cache.get(chat_id, {}).get("titolo_selezionato", "Sconosciuto")
             titolo_selezionato = titolo_selezionato.replace(":", "-").replace("?", "").replace("!", "").replace(" ", "_")
