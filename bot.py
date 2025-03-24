@@ -45,19 +45,23 @@ async def cerca_handler(event):
         "previous_screen": "home",  # Schermata iniziale prima della ricerca
     }
 
-    buttons = [Button.inline(titolo, data=short_hash) for titolo, link, short_hash in risultati]
+    max_results_per_page = 20
+    buttons = [Button.inline(titolo, data=short_hash) for titolo, link, short_hash in risultati[:max_results_per_page]]
     buttons_row = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
 
     paginazione_buttons = []
     if pagina > 1:
-        paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_{pagina-1}"))
-    paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_{pagina+1}"))
+        paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_search_{pagina-1}"))
+    paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_search_{pagina+1}"))
     
+    if paginazione_buttons:
+        paginazione_buttons = [paginazione_buttons]
+
     back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
 
     await event.respond(
         f"🔍 Risultati per: `{nome_anime}`\n\nScegli un anime:",
-        buttons=buttons_row + [paginazione_buttons, [back_to_home_button]],
+        buttons=buttons_row + paginazione_buttons + [[back_to_home_button]],
         parse_mode="markdown"
     )
 
@@ -80,24 +84,65 @@ async def callback_handler(event):
                 cerca_anime_cache[chat_id]["titolo_selezionato"] = titolo
 
     # Handling pagination
-    if data.startswith("page_"):
-        pagina = int(data.split("_")[1])
+    if data.startswith("page_search_"):
+        pagina = int(data.split("_")[2])
         nome_anime = cerca_anime_cache[chat_id]["nome"]
         risultati, _ = cerca_anime(nome_anime, pagina)
 
         buttons = [Button.inline(titolo, data=short_hash) for titolo, link, short_hash in risultati]
+        max_results_per_page = 20
+        risultati = risultati[:max_results_per_page]
         buttons_row = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
 
         paginazione_buttons = []
         if pagina > 1:
-            paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_{pagina-1}"))
-        paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_{pagina+1}"))
+            paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_search_{pagina-1}"))
+        paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_search_{pagina+1}"))
         
         back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
 
         await event.edit(
             f"🔍 Risultati per: `{nome_anime}`\n\nScegli un anime:",
             buttons=buttons_row + [paginazione_buttons, [back_to_home_button]],
+            parse_mode="markdown"
+        )
+    
+    if data.startswith("page_episode_"):
+        pagina = int(data.split("_")[2])
+        nome_anime = cerca_anime_cache[chat_id]["nome"]
+        titolo_selezionato = cerca_anime_cache[chat_id].get("titolo_selezionato", "Sconosciuto")
+        
+        # Troviamo gli episodi per l'anime selezionato
+        url_anime = next((link for titolo, link, _ in cerca_anime_cache[chat_id]["risultati"] if titolo == titolo_selezionato), None)
+        episodi = trova_episodi(url_anime)
+        
+        # Gestiamo la paginazione degli episodi
+        max_results_per_page = 20
+        total_episodi = len(episodi)
+        num_pages = (total_episodi + max_results_per_page - 1) // max_results_per_page
+
+        # Seleziona gli episodi per la pagina corrente
+        episodi = episodi[(pagina - 1) * max_results_per_page:pagina * max_results_per_page]
+        episodi_row = [Button.inline(f"{ep_numero}", data=link) for ep_numero, link in episodi]
+        episodi_row = [episodi_row[i:i+2] for i in range(0, len(episodi_row), 2)]  # Dividi in righe
+
+        final_row = [Button.inline("🤖 Consigliami", data=f"consiglio_{titolo_selezionato}"), Button.inline("🏠 Torna alla home", data="home")]
+
+        paginazione_buttons = []
+        if pagina > 1:
+            paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_episode_{pagina-1}"))
+        if pagina < num_pages:
+            paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_episode_{pagina+1}"))
+
+        if paginazione_buttons:
+            paginazione_buttons = [paginazione_buttons]
+        
+        all_buttons = episodi_row + paginazione_buttons + [final_row]
+
+        # Rispondi con gli episodi e i pulsanti di paginazione
+        await event.edit(
+            f"📺 Episodi di `{titolo_selezionato}`:",
+            buttons=all_buttons,
             parse_mode="markdown"
         )
 
@@ -117,18 +162,34 @@ async def callback_handler(event):
 
             cerca_anime_cache[chat_id]["episodi"] = episodi
 
-            episodi_row = []
-            for ep_numero, link in episodi:
-                episodi_row.append([Button.inline(f"{ep_numero}", data=link)])
+            max_results_per_page = 20
+            total_episodi = len(episodi)
+            num_pages = (total_episodi + max_results_per_page - 1) // max_results_per_page
+            episodi = episodi[:max_results_per_page]
+            episodi_row = [Button.inline(f"{ep_numero}", data=link) for ep_numero, link in episodi]
+            episodi_row = [episodi_row[i:i+2] for i in range(0, len(episodi_row), 2)]
 
-            nome_anime = cerca_anime_cache.get(chat_id, {}).get("nome", "Anime")
+            titolo_selezionato = cerca_anime_cache.get(chat_id, {}).get("titolo_selezionato", "Sconosciuto")
 
-            consiglia_button = [Button.inline("🤖 Consigliami", data=f"consiglio_{nome_anime}")]
-            back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
+            final_row = [Button.inline("🤖 Consigliami", data=f"consiglio_{titolo_selezionato}"), Button.inline("🏠 Torna alla home", data="home")]
+
+            pagina_corrente = 1  # Se non c'è nessuna paginazione, iniziamo dalla pagina 1
+            paginazione_buttons = []
+
+            if pagina_corrente > 1:
+                paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_episode_{pagina_corrente - 1}"))
+            if pagina_corrente < num_pages:
+                paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_episode_{pagina_corrente + 1}"))
+            
+            if paginazione_buttons:
+                paginazione_buttons = [paginazione_buttons]  # Per Telethon, la paginazione deve essere una lista di liste
+
+            # Uniamo tutti i bottoni, inclusi quelli di paginazione e ritorno alla home
+            all_buttons = episodi_row + paginazione_buttons + [final_row]
 
             await event.edit(
                 "📺 Episodi disponibili:",
-                buttons=episodi_row + [consiglia_button, [back_to_home_button]],
+                buttons=all_buttons,
                 parse_mode="markdown"
             )
 
@@ -141,7 +202,7 @@ async def callback_handler(event):
         suggerimenti = consiglia_anime(nome_anime)
         back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
 
-        await event.respond(f"🎌 Ecco alcuni anime simili a '{nome_anime}':\n\n{suggerimenti}",
+        await event.respond(f"🎌{suggerimenti}",
                             buttons=[[back_to_home_button]])
 
     # Handling the creation of M3U file
