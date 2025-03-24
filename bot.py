@@ -53,13 +53,11 @@ async def cerca_handler(event):
         paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_{pagina-1}"))
     paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_{pagina+1}"))
     
-    # Pulsanti per tornare alla schermata precedente o home
     back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
-    back_button = Button.inline("↩️ Torna alla schermata precedente", data="back")
 
     await event.respond(
         f"🔍 Risultati per: `{nome_anime}`\n\nScegli un anime:",
-        buttons=buttons_row + [paginazione_buttons, [back_button, back_to_home_button]],
+        buttons=buttons_row + [paginazione_buttons, [back_to_home_button]],
         parse_mode="markdown"
     )
 
@@ -80,37 +78,6 @@ async def callback_handler(event):
             if data == short_hash:
                 titolo_selezionato = titolo
                 cerca_anime_cache[chat_id]["titolo_selezionato"] = titolo
-    
-    # Handling the "Torna alla schermata precedente"
-    if data == "back":
-        previous_screen = cerca_anime_cache.get(chat_id, {}).get("previous_screen")
-
-        if previous_screen == "home":
-            await show_home(event)
-        elif previous_screen == "cerca_anime":
-            nome_anime = cerca_anime_cache[chat_id]["nome"]
-            risultati, pagina = cerca_anime(nome_anime)
-
-            buttons = [Button.inline(titolo, data=short_hash) for titolo, link, short_hash in risultati]
-            buttons_row = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
-
-            paginazione_buttons = []
-            if pagina > 1:
-                paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_{pagina-1}"))
-            paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_{pagina+1}"))
-            
-            # Pulsanti per tornare alla schermata precedente o home
-            back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
-            back_button = Button.inline("↩️ Torna alla schermata precedente", data="back")
-
-            await event.edit(
-                f"🔍 Risultati per: `{nome_anime}`\n\nScegli un anime:",
-                buttons=buttons_row + [paginazione_buttons, [back_button, back_to_home_button]],
-                parse_mode="markdown"
-            )
-        else:
-            await event.answer("❌ Non è possibile tornare indietro.", alert=True)
-        return
 
     # Handling pagination
     if data.startswith("page_"):
@@ -126,13 +93,11 @@ async def callback_handler(event):
             paginazione_buttons.append(Button.inline("⬅️ Precedente", data=f"page_{pagina-1}"))
         paginazione_buttons.append(Button.inline("➡️ Successivo", data=f"page_{pagina+1}"))
         
-        # Pulsanti per tornare alla schermata precedente o home
         back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
-        back_button = Button.inline("↩️ Torna alla schermata precedente", data="back")
 
         await event.edit(
             f"🔍 Risultati per: `{nome_anime}`\n\nScegli un anime:",
-            buttons=buttons_row + [paginazione_buttons, [back_button, back_to_home_button]],
+            buttons=buttons_row + [paginazione_buttons, [back_to_home_button]],
             parse_mode="markdown"
         )
 
@@ -159,12 +124,11 @@ async def callback_handler(event):
             nome_anime = cerca_anime_cache.get(chat_id, {}).get("nome", "Anime")
 
             consiglia_button = [Button.inline("🤖 Consigliami", data=f"consiglio_{nome_anime}")]
-            back_button = Button.inline("↩️ Torna alla schermata precedente", data="back")
             back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
 
             await event.edit(
                 "📺 Episodi disponibili:",
-                buttons=episodi_row + [consiglia_button, [back_button, back_to_home_button]],
+                buttons=episodi_row + [consiglia_button, [back_to_home_button]],
                 parse_mode="markdown"
             )
 
@@ -175,11 +139,10 @@ async def callback_handler(event):
         await event.answer("⌛ Sto cercando consigli... Attendi un momento.", alert=True)
 
         suggerimenti = consiglia_anime(nome_anime)
-        back_button = Button.inline("↩️ Torna alla schermata precedente", data="back")
         back_to_home_button = Button.inline("🏠 Torna alla home", data="home")
 
         await event.respond(f"🎌 Ecco alcuni anime simili a '{nome_anime}':\n\n{suggerimenti}",
-                            buttons=[[back_button, back_to_home_button]])
+                            buttons=[[back_to_home_button]])
 
     # Handling the creation of M3U file
     elif data.startswith("http"):
